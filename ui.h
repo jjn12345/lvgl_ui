@@ -4,4 +4,4 @@
 
 
 
-void my_gui(void);
+void lvgl_ui(void);

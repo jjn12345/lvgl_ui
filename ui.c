@@ -1,4 +1,4 @@
-#include "my_gui.h"
+#include "ui.h"
 #include "lvgl/lvgl.h"
 
 
@@ -9,7 +9,7 @@
 
 
 
-void my_gui(void){
-	
-	
+void lvgl_ui(void){
+
+
 }
