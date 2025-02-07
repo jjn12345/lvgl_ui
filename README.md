@@ -1,2 +1,2 @@
 # lvgl_ui
-学习LVGL
+1.  安装完毕对应lvgl的模拟器
