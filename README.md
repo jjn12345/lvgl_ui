@@ -66,7 +66,7 @@ lvgl 学习
 
 三. lvgl盒子模型
 
-    ![alt text](image.png)
+    ![alt text](./image.png)
 
 
    
