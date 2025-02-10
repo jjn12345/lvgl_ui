@@ -1,19 +1,19 @@
 #include "ui.h"
 #include "lvgl/lvgl.h"
 
-static lv_obj_t * main_screen = NULL;
+static lv_obj_t* root_screen = NULL;     /*根屏幕,后续所有屏幕基于此屏幕创建 */
 
 static void ui_init(void){
-    main_screen = lv_screen_active();
+    root_screen = lv_screen_active();
 }
-
+/* 大小 */
 void ui_size(void){
     lv_obj_t * sub_obj;
     int32_t obj_h = 0;
     int32_t obj_w = 0;
     int32_t content_w;
     int32_t content_h;
-    sub_obj = lv_obj_create(main_screen);
+    sub_obj = lv_obj_create(root_screen);
     // lv_obj_set_size(sub_obj,120,100);
     lv_obj_set_width(sub_obj,LV_PCT(70));
     lv_obj_set_height(sub_obj,LV_PCT(70));
@@ -26,7 +26,7 @@ void ui_size(void){
     LV_LOG_USER("content_w:content_h --- %d:%d",content_w,content_h);
 
 }
-
+/* 位置 */
 void ui_pos(void){
     lv_obj_t * sub_obj;
     lv_obj_t * sub_obj2;
@@ -36,10 +36,10 @@ void ui_pos(void){
     int32_t obj_y = 0;
     int32_t obj_x2 = 0;
     int32_t obj_y2 = 0;
-    sub_obj = lv_obj_create(main_screen);
+    sub_obj = lv_obj_create(root_screen);
     lv_obj_set_size(sub_obj,LV_PCT(30),LV_PCT(30));
     lv_obj_align(sub_obj,LV_ALIGN_CENTER,0,0);
-    // sub_obj2 = lv_obj_create(main_screen);
+    // sub_obj2 = lv_obj_create(root_screen);
     // lv_obj_set_size(sub_obj2,LV_PCT(20),LV_PCT(20));
     // lv_obj_align(sub_obj2,LV_ALIGN_CENTER,0,0);
 
@@ -68,6 +68,7 @@ void ui_pos(void){
     // lv_obj_set_align(sub_obj,LV_ALIGN_CENTER);
     // lv_obj_align(sub_obj,LV_ALIGN_CENTER,0,0);
 }
+/* 盒子模型 */
 typedef enum{
     mid_box = 0,
     t_mid_box,
@@ -92,7 +93,7 @@ void ui_box_model(void){
         .green = 95,
     };
     for(i = 0;i<9;i++){
-        box[i] = lv_obj_create(main_screen);
+        box[i] = lv_obj_create(root_screen);
         lv_obj_add_style(box[i],&box_style,LV_PART_MAIN);
     }
     lv_obj_set_pos(box[mid_box],100,100);
@@ -111,11 +112,11 @@ void ui_box_model(void){
 
 
 }
-
+/* 样式 */
 void ui_style(void){
     /* 添加对象 */
-    lv_obj_t * sub_obj1 = lv_obj_create(main_screen);
-    lv_obj_t * sub_obj2 = lv_obj_create(main_screen);
+    lv_obj_t * sub_obj1 = lv_obj_create(root_screen);
+    lv_obj_t * sub_obj2 = lv_obj_create(root_screen);
     lv_obj_t * label1 = lv_label_create(sub_obj1);
     lv_obj_t * label2 = lv_label_create(sub_obj2);
     /* 按钮 */
@@ -152,18 +153,21 @@ void ui_style(void){
     lv_obj_add_style(sub_obj2,&style,0);
 }
 
-
-static lv_obj_t* sub_screen;
-static lv_obj_t* slider;
-static lv_obj_t* label;
+/* 滚动条 */
 static void slider_scroll(lv_event_t * e){
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t* label = lv_event_get_user_data(e);
+    lv_obj_t* slider = lv_event_get_target_obj(e);
     if(lv_event_get_code(e) == LV_EVENT_VALUE_CHANGED){
         lv_label_set_text_fmt(label,"%d%%",lv_slider_get_value(slider));
     }
 }
 void ui_slider(void){
     /* 创建对象 */
-    sub_screen = lv_obj_create(main_screen);
+    lv_obj_t* sub_screen;
+    lv_obj_t* slider;
+    lv_obj_t* label;
+    sub_screen = lv_obj_create(root_screen);
     slider = lv_slider_create(sub_screen);
     label = lv_label_create(sub_screen);
     /* 设定基本属性 */
@@ -180,7 +184,7 @@ void ui_slider(void){
 
     static lv_style_transition_dsc_t trans;
     lv_style_transition_dsc_init(&trans, trans_props, lv_anim_path_ease_out, 500, 0,NULL);
-    
+
 
 
     /* 创建样式 */
@@ -217,11 +221,11 @@ void ui_slider(void){
     lv_style_set_transition(&slider_knob_press_style, &trans);
     lv_obj_add_style(slider,&slider_knob_press_style,LV_PART_KNOB | LV_PART_INDICATOR |LV_STATE_PRESSED);
 
-    lv_obj_align_to(label,slider,LV_ALIGN_CENTER,0,20);
+    lv_obj_align_to(label,slider,LV_ALIGN_OUT_BOTTOM_MID,0,0);
     /* 为滚动条添加事件 */
-    lv_obj_add_event_cb(slider,slider_scroll,LV_EVENT_VALUE_CHANGED,NULL);
+    lv_obj_add_event_cb(slider,slider_scroll,LV_EVENT_VALUE_CHANGED,label);
 }
-
+/* 任务事件 */
 static void button_event(lv_event_t * e){
     static uint16_t click_nums = 0;
     lv_event_code_t code = lv_event_get_code(e);
@@ -233,10 +237,7 @@ static void button_event(lv_event_t * e){
         }
         break;
     }
-
-
 }
-
 void ui_event(void){
     lv_obj_t* sub_screen;
     lv_obj_t* button;
@@ -249,7 +250,7 @@ void ui_event(void){
     lv_style_transition_dsc_init(&button_trans,trans_props,lv_anim_path_ease_in,300,0,NULL);
 
     /* 创建对象 */
-    sub_screen = lv_obj_create(main_screen);
+    sub_screen = lv_obj_create(root_screen);
     button = lv_button_create(sub_screen);
     label = lv_label_create(button);
     lv_obj_set_align(label,LV_ALIGN_CENTER);
@@ -267,7 +268,7 @@ void ui_event(void){
     lv_style_set_bg_color(&button_press_style,lv_color_hex(0x0c548b));
     lv_style_set_bg_opa(&button_press_style,LV_OPA_100);
     lv_style_set_transition(&button_press_style,&button_trans);
-    
+
     /* 添加样式 */
     lv_obj_add_style(button,&button_style,LV_PART_MAIN);
     lv_obj_add_style(button,&button_press_style,LV_PART_MAIN|LV_STATE_PRESSED);
@@ -278,10 +279,10 @@ void ui_event(void){
     lv_obj_add_event_cb(button,button_event,LV_EVENT_ALL,label);
 }
 
-
+/* 任务冒泡 */
 static void bubbing_event(lv_event_t * e){
     lv_event_code_t code = lv_event_get_code(e);            /* 获取事件代码 */
-    lv_obj_t * now_obj = lv_event_get_current_target(e);    /*  获取当前触发对象 */
+    lv_obj_t * now_obj = lv_event_get_current_target(e);    /* 获取当前触发对象 */
     lv_obj_t * label = lv_event_get_user_data(e);           /* 获取传过来的用户数据 */
     lv_obj_t * tar_obj = lv_event_get_target_obj(e);        /* 获取最初的触发对象 */
     switch (code){
@@ -292,22 +293,22 @@ static void bubbing_event(lv_event_t * e){
         break;
         case LV_EVENT_RELEASED:{
             lv_obj_remove_local_style_prop(now_obj,LV_STYLE_BG_COLOR,0);
-            lv_label_set_text(label,"I am in main_screen");
+            lv_label_set_text(label,"I am in root_screen");
         }
         break;
     }
 }
 void ui_event_bubbing(void){
     /* 创建对象 */
-    lv_obj_t* s_screen = lv_obj_create(main_screen);
+    lv_obj_t* s_screen = lv_obj_create(root_screen);
     lv_obj_t* ss_screen = lv_obj_create(s_screen);
     lv_obj_t* sss_screen = lv_obj_create(ss_screen);
-    lv_obj_t* label = lv_label_create(main_screen);
+    lv_obj_t* label = lv_label_create(root_screen);
     lv_obj_t* button = lv_button_create(sss_screen);
     lv_obj_t* b_label = lv_label_create(button);
 
     /* 设置控件属性 */
-    lv_label_set_text(label,"I am in main_screen");
+    lv_label_set_text(label,"I am in root_screen");
     lv_obj_align(label,LV_ALIGN_TOP_MID,0,0);
     lv_obj_set_size(button,50,20);
     lv_obj_set_align(button,LV_ALIGN_CENTER);
@@ -330,10 +331,457 @@ void ui_event_bubbing(void){
     lv_obj_add_flag(sss_screen,LV_OBJ_FLAG_EVENT_BUBBLE);
     lv_obj_add_flag(button,LV_OBJ_FLAG_EVENT_BUBBLE);
 
-    lv_obj_add_event_cb(main_screen,bubbing_event,LV_EVENT_ALL,label);
+    lv_obj_add_event_cb(root_screen,bubbing_event,LV_EVENT_ALL,label);
 }
 
+/* lv定时器 */
+static void timer1_cb (lv_timer_t *timer){
+    static uint16_t run_sum = 0;
+    lv_obj_t* label = lv_timer_get_user_data(timer);
+    LV_LOG_USER("timer1 run");
+    run_sum++;
+    lv_label_set_text_fmt(label,"timer1 run_sum: %d",run_sum);
+}
+static void timer2_cb (lv_timer_t *timer){
+    lv_timer_t* user_timer = lv_timer_get_user_data(timer);
+    LV_LOG_USER("timer2 run");
+    lv_timer_pause(user_timer);
+}
+static void timer3_cb (lv_timer_t *timer){
+    lv_timer_t* user_timer = lv_timer_get_user_data(timer);
+    LV_LOG_USER("timer3 run");
+    lv_timer_resume(user_timer);
+}
+void ui_timer(void){
+    lv_timer_t* timer1 = NULL;
+    lv_timer_t* timer2 = NULL;
+    lv_timer_t* timer3 = NULL;
+    lv_obj_t* label = lv_label_create(root_screen);
 
+    timer1 = lv_timer_create(timer1_cb,1000,label);
+    lv_timer_ready(timer1);     /* 在下一次的lv_task_handler中立刻执行 */
+    timer2 = lv_timer_create(timer2_cb,6000,timer1);
+    lv_timer_set_repeat_count(timer2,1);
+    timer3 = lv_timer_create_basic();
+    lv_timer_set_cb(timer3,timer3_cb);
+    lv_timer_set_user_data(timer3,timer1);
+    lv_timer_set_period(timer3,8000);
+    lv_timer_set_repeat_count(timer3,1);
+
+
+}
+
+/* label */
+void ui_label(void){
+    static char text[] = "static test";
+    lv_obj_t* label1 = lv_label_create(root_screen);
+    lv_obj_t* label2 = lv_label_create(root_screen);
+    lv_obj_t* label3 = lv_label_create(root_screen);
+
+    lv_obj_align_to(label2,label1,LV_ALIGN_OUT_BOTTOM_MID,0,0);
+    lv_obj_align_to(label3,label2,LV_ALIGN_OUT_BOTTOM_MID,0,0);
+
+    lv_obj_set_width(label3,80);
+
+    lv_label_set_text(label1,"test");
+    lv_label_set_text_static(label2,text);
+    lv_label_set_text(label3,LV_SYMBOL_WIFI "abcdefghijklmnopqrstuvwxyz");
+    // lv_label_set_long_mode(label3,LV_LABEL_LONG_DOT);
+    // lv_label_set_long_mode(label3,LV_LABEL_LONG_SCROLL);
+    lv_label_set_long_mode(label3,LV_LABEL_LONG_SCROLL_CIRCULAR);
+
+    lv_obj_set_style_text_font(label3,&lv_font_montserrat_30,0);
+}
+
+/* switch */
+static void sw_evt_cb(lv_event_t* e){
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t* sw = lv_event_get_target_obj(e);
+    if(code == LV_EVENT_VALUE_CHANGED){
+      LV_LOG_USER("sw state: %s",lv_obj_has_state(sw,LV_STATE_CHECKED)?"OPEN":"CLOSE");
+    }
+}
+void ui_switch(void){
+    lv_obj_t*sub_screen = lv_obj_create(root_screen);
+    lv_obj_align(sub_screen,LV_ALIGN_CENTER,0,0);
+
+    lv_obj_t*sw = lv_switch_create(sub_screen);
+    lv_obj_align(sw,LV_ALIGN_CENTER,0,0);
+    // lv_obj_remove_state(sw,LV_STATE_CHECKED);   /* 将状态变为关闭 */
+    // lv_obj_add_state(sw,LV_STATE_CHECKED);   /* 将状态变为开启 */
+    lv_obj_add_event_cb(sw,sw_evt_cb,LV_EVENT_ALL,NULL);
+
+}
+
+/* led */
+static void slider_led_evt(lv_event_t* e){
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t* led = lv_event_get_user_data(e);
+    lv_obj_t*slider = lv_event_get_target_obj(e);
+    int32_t slider_value = lv_slider_get_value(slider);
+    if(code == LV_EVENT_VALUE_CHANGED){
+        if(slider_value > 0){
+            lv_led_on(led);
+            lv_led_set_brightness(led,slider_value);
+        }
+        else{
+            lv_led_off(led);
+        }
+    }
+
+}
+static void switch_led_evt(lv_event_t* e){
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t* led = lv_event_get_user_data(e);
+    lv_obj_t* sw = lv_event_get_target_obj(e);
+    if(code == LV_EVENT_VALUE_CHANGED){
+        if(lv_obj_has_state(sw,LV_STATE_CHECKED)){
+            lv_led_on(led);
+        }
+        else{
+            lv_led_off(led);
+        }
+    }
+}
+void ui_led(void){
+    /* 创建对象 */
+    lv_obj_t* sub_screen1 = lv_obj_create(root_screen);
+    lv_obj_t* slider = lv_slider_create(root_screen);
+    lv_obj_t* led1 = lv_led_create(sub_screen1);
+
+    lv_obj_t* sub_screen2 = lv_obj_create(root_screen);
+    lv_obj_t* sw = lv_switch_create(root_screen);
+    lv_obj_t* led2 = lv_led_create(sub_screen2);
+    /* 布局  */
+    lv_obj_set_size(sub_screen1,LV_PCT(30),LV_PCT(30));
+    lv_obj_set_size(sub_screen2,LV_PCT(30),LV_PCT(30));
+    lv_obj_set_width(slider,lv_obj_get_width(sub_screen1) / 2);
+    lv_obj_set_size(sw,40,25);
+    lv_obj_update_layout(sub_screen1);
+    lv_obj_update_layout(sub_screen2);
+    lv_obj_update_layout(slider);
+    lv_obj_update_layout(sw);
+    lv_obj_align(led1,LV_ALIGN_CENTER,0,0);
+    lv_obj_align(led2,LV_ALIGN_CENTER,0,0);
+    lv_obj_align(sub_screen1,LV_ALIGN_LEFT_MID,30,-40);
+    lv_obj_align(sub_screen2,LV_ALIGN_RIGHT_MID,-30,-40);
+    lv_obj_align_to(slider,sub_screen1,LV_ALIGN_OUT_BOTTOM_MID,0,0);
+    lv_obj_align_to(sw,sub_screen2,LV_ALIGN_OUT_BOTTOM_MID,-20,-10);
+
+    /* 设置颜色 */
+    lv_led_set_color(led1,lv_color_hex(0xff0000));
+    lv_led_set_color(led2,lv_color_hex(0x00ff00));
+
+    /* 设置初始状态 */
+    lv_led_off(led1);
+    lv_led_off(led2);
+    lv_obj_remove_state(sw,LV_STATE_CHECKED);
+    lv_slider_set_range(slider,0,255);
+    lv_slider_set_value(slider,0,LV_ANIM_ON);
+
+    /* 为滚动条和开关添加事件 */
+    lv_obj_add_event_cb(slider,slider_led_evt,LV_EVENT_ALL,led1);
+    lv_obj_add_event_cb(sw,switch_led_evt,LV_EVENT_ALL,led2);
+}
+
+/* list */
+static void list_handle1(lv_event_t*e){
+    lv_event_code_t code = lv_event_get_code(e);
+    void* user_data = lv_event_get_user_data(e);
+    lv_obj_t* current_obj = lv_event_get_current_target(e);
+    lv_obj_t* tar_obj = lv_event_get_target_obj(e);
+    if(code == LV_EVENT_CLICKED){
+        LV_LOG_USER("CLICKED:  %s",lv_list_get_button_text((lv_obj_t*)user_data,current_obj));
+    }
+}
+void ui_list(void){
+    /* 创建列表并设置基本的布局 */
+    lv_obj_t* s_screen = lv_obj_create(root_screen);
+    static lv_style_t screen_style;
+    lv_style_init(&screen_style);
+    lv_style_set_size(&screen_style,LV_PCT(100),LV_PCT(100));
+    lv_style_set_align(&screen_style,LV_ALIGN_CENTER);
+    lv_obj_add_style(s_screen,&screen_style,0);
+
+    lv_obj_t* list = lv_list_create(s_screen);
+    static lv_style_t list_style;
+    lv_style_init(&list_style);
+    lv_style_set_size(&list_style,LV_PCT(80),LV_PCT(80));
+    lv_style_set_align(&list_style,LV_ALIGN_CENTER);
+    lv_obj_add_style(list,&list_style,0);
+
+    /* 测试列表的用法 */
+    lv_obj_t* btn; /* 获取列表中的按键 */
+    lv_list_add_text(list,"Connectivity");
+    btn = lv_list_add_button(list,LV_SYMBOL_WIFI,"WIFI");
+    lv_obj_add_event_cb(btn,list_handle1,LV_EVENT_CLICKED,list);
+    btn = lv_list_add_button(list,LV_SYMBOL_BLUETOOTH,"Bluetooth");
+    lv_obj_add_event_cb(btn,list_handle1,LV_EVENT_CLICKED,list);
+    btn = lv_list_add_button(list,LV_SYMBOL_GPS,"GPS");
+    lv_obj_add_event_cb(btn,list_handle1,LV_EVENT_CLICKED,list);
+    btn = lv_list_add_button(list,LV_SYMBOL_USB,"USB");
+    lv_obj_add_event_cb(btn,list_handle1,LV_EVENT_CLICKED,list);
+    btn = lv_list_add_button(list,LV_SYMBOL_BATTERY_FULL,"Battery");
+    lv_obj_add_event_cb(btn,list_handle1,LV_EVENT_CLICKED,list);
+}
+
+/* KeyBoard */
+static void ta_handle(lv_event_t*e){
+    lv_event_code_t code = lv_event_get_code(e);    /* 获取事件代码 */
+    lv_obj_t* user_data = lv_event_get_user_data(e);    /* 获取用户数据 */
+    lv_obj_t* tar_obj = lv_event_get_target_obj(e); /* 获取最初触发对象 */
+    switch(code){
+        case LV_EVENT_FOCUSED:{
+            lv_keyboard_set_textarea(user_data,tar_obj);
+            lv_obj_remove_flag(user_data,LV_OBJ_FLAG_HIDDEN);   /* 显示键盘 */
+        }
+        break;
+        case LV_EVENT_DEFOCUSED:{
+            lv_keyboard_set_textarea(user_data,NULL);
+            lv_obj_add_flag(user_data,LV_OBJ_FLAG_HIDDEN);   /* 隐藏键盘 */
+        }
+        break;
+    }
+}
+static void kb_handle(lv_event_t*e){
+    lv_event_code_t code = lv_event_get_code(e);    /* 获取事件代码 */
+    lv_obj_t* user_data = lv_event_get_user_data(e);    /* 获取用户数据 */
+    lv_obj_t* tar_obj = lv_event_get_target_obj(e); /* 获取最初触发对象 */
+    switch(code){
+        case LV_EVENT_READY:{
+            lv_obj_t* ta = lv_keyboard_get_textarea(tar_obj);
+            LV_LOG_USER("%s: %s",lv_textarea_get_placeholder_text(ta),lv_textarea_get_text(ta));
+        }
+        break;
+        case LV_EVENT_CANCEL:{
+            lv_obj_add_flag(user_data,LV_OBJ_FLAG_HIDDEN);   /* 隐藏键盘 */
+        }
+        break;
+    }
+
+}
+void ui_key_board(void){
+
+    lv_obj_t* key_board = lv_keyboard_create(root_screen);
+    lv_obj_t* text_area = lv_textarea_create(root_screen);
+    lv_obj_t* text_area2 = lv_textarea_create(root_screen);
+    lv_obj_set_width(text_area,70);
+    lv_obj_set_width(text_area2,70);
+    lv_obj_align(text_area2,LV_ALIGN_TOP_RIGHT,0,0);
+    lv_textarea_set_one_line(text_area2,true);   /* 设置单行 */
+    lv_textarea_set_one_line(text_area,true);   /* 设置单行 */
+    lv_textarea_set_placeholder_text(text_area,"SSID");
+    lv_textarea_set_placeholder_text(text_area2,"PWD");
+    lv_obj_add_event_cb(text_area,ta_handle,LV_EVENT_ALL,key_board);
+    lv_obj_add_event_cb(text_area2,ta_handle,LV_EVENT_ALL,key_board);
+
+
+    lv_keyboard_set_mode(key_board,LV_KEYBOARD_MODE_TEXT_LOWER); /*设置模式为小写模式 */
+    lv_keyboard_set_popovers(key_board,true);   /* 按下按键后弹出对应提示框 */
+    lv_obj_add_flag(key_board,LV_OBJ_FLAG_HIDDEN);  /* 隐藏键盘 */
+    lv_obj_add_event_cb(key_board,kb_handle,LV_EVENT_ALL,NULL);
+
+
+}
+
+/* demo 1 */
+#include "link_list.h"
+/* 页面枚举和全局变量 */
+typedef enum{
+    top_block = 0,
+    main_block,
+    bottom_block,
+    right_block,
+    block_count,
+}page_block_t;
+typedef enum{
+    main_screen = 0,
+    wifi_screen,
+    screen_count,
+}screen_t;
+#define BLOCK_BORDER_WIDTH        0         /* 区块的边框宽度 */
+static lv_obj_t* page_block[block_count];                   /* 整个页面的区块 */
+static lv_style_t indicator_style;                          /* 屏幕指示器的统一样式 */
+static lv_obj_t**indicator;                                 /* 屏幕指示器(根据分支节点数动态创建) */
+static lv_obj_t* screen[screen_count];                      /* 屏幕 */
+#define current_screen  (screen_t)(screen_list.head->data)    /* 当前屏幕永远是屏幕链表的头结点的数据 */
+static dlist_t  screen_list = {0};
+/* 内存池 */
+static uint8_t ui_mem_buffer[4096];
+static mem_pool_t ui_mem_pool;
+static void block_init(void){
+    /* 创建page_block */
+    page_block[top_block] = lv_obj_create(root_screen);
+    page_block[main_block] = lv_obj_create(root_screen);
+    page_block[bottom_block] = lv_obj_create(root_screen);
+    page_block[right_block] = lv_obj_create(root_screen);
+    /* 对页面区块进行布局 */
+    /* 设置区块大小 */
+    lv_obj_set_size(page_block[top_block],LV_PCT(50),LV_PCT(25));
+    lv_obj_set_width(page_block[main_block],LV_PCT(50));
+    lv_obj_set_flex_grow(page_block[main_block],1);
+    lv_obj_set_size(page_block[bottom_block],LV_PCT(50),LV_PCT(10));
+    lv_obj_set_size(page_block[right_block],LV_PCT(50),LV_PCT(100));
+    /* 设置区块间距 */
+    lv_obj_set_style_pad_column(root_screen, 0, 0);
+    lv_obj_set_style_pad_row(root_screen, 0, 0);
+    /* 设置区块透明 */
+    static lv_style_t block_style;
+    lv_style_init(&block_style);
+    lv_style_set_border_width(&block_style,BLOCK_BORDER_WIDTH);
+    lv_style_set_bg_opa(&block_style,LV_OPA_0);
+    lv_style_set_pad_all(&block_style,0);
+    for(uint32_t i = 0;i < block_count;i++){
+        lv_obj_add_style(page_block[i],&block_style,0);
+    }
+}
+/* 实现主区块的界面切换 */
+/* 回退到上一个屏幕 */
+static void main_block_out_screen(void){
+    if(current_screen == main_screen){
+        return;
+    }
+    lv_obj_add_flag(screen[current_screen],LV_OBJ_FLAG_HIDDEN);
+    dlist_remove(&screen_list,screen_list.head);    /* 删除头结点 */
+    lv_led_on(indicator[screen_list.count-1]);
+    lv_obj_delete(indicator[screen_list.count]);
+    lv_obj_remove_flag(screen[current_screen],LV_OBJ_FLAG_HIDDEN);
+    LV_LOG_USER("%d",current_screen);
+}
+/* 进入下一个屏幕 */
+static void main_block_in_screen(screen_t in_screen){
+    if(in_screen == current_screen)return;
+    lv_obj_add_flag(screen[current_screen],LV_OBJ_FLAG_HIDDEN);
+    dlist_insert_head(&screen_list,(void*)in_screen);                   /* 插入头结点 */
+    indicator = realloc(indicator,sizeof(lv_obj_t*)*screen_list.count);
+    indicator[screen_list.count-1] = lv_led_create(page_block[bottom_block]);
+    lv_obj_add_style(indicator[screen_list.count-1],&indicator_style,0);
+    lv_led_on(indicator[screen_list.count-1]);
+    lv_led_off(indicator[screen_list.count-2]);
+    lv_obj_remove_flag(screen[current_screen],LV_OBJ_FLAG_HIDDEN);
+    LV_LOG_USER("%d",current_screen);
+}
+/* 顶部区块的界面创建 */
+/* 返回按钮的回调函数 */
+static void bk_btn_cb(lv_event_t* e){
+    lv_obj_t * bk_btn = lv_event_get_target_obj(e);
+    lv_event_code_t code = lv_event_get_code(e);
+    switch(code){
+        case LV_EVENT_RELEASED:{
+            main_block_out_screen();
+        }
+        break;
+    }
+}
+static void top_block_create(void){
+    lv_obj_t* back_btn = lv_button_create(page_block[top_block]);
+    lv_obj_t* label = lv_label_create(back_btn);
+    lv_obj_set_size(back_btn,LV_PCT(40),LV_SIZE_CONTENT);
+    lv_obj_align(back_btn,LV_ALIGN_LEFT_MID,10,0);
+    lv_label_set_text(label,"BACK");
+    lv_obj_center(label);
+    lv_obj_add_flag(back_btn,LV_OBJ_FLAG_FLOATING);
+    lv_obj_add_event_cb(back_btn,bk_btn_cb,LV_EVENT_ALL,NULL);
+}
+/* 底部区块的界面创建 */
+static void bottom_block_create(void){
+    lv_obj_set_flex_flow(page_block[bottom_block],LV_FLEX_FLOW_ROW);
+    indicator = malloc(sizeof(lv_obj_t*) * 1);
+    indicator[0] = lv_led_create(page_block[bottom_block]);
+    lv_obj_set_flex_align(page_block[bottom_block],LV_FLEX_ALIGN_START,LV_FLEX_ALIGN_CENTER,LV_FLEX_ALIGN_CENTER);
+    lv_style_init(&indicator_style);
+    lv_style_set_size(&indicator_style,10,10);
+    lv_style_set_radius(&indicator_style,LV_RADIUS_CIRCLE);
+    lv_style_set_bg_color(&indicator_style,lv_color_hex(0x22a5f1));
+    lv_obj_add_style(indicator[0],&indicator_style,0);
+}
+/* 主区块的界面创建 */
+static void main_btn_cb(lv_event_t * e){
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t* btn = lv_event_get_target_obj(e);
+    void* user_data = lv_event_get_user_data(e);
+    screen_t next_screen;
+    if(user_data){
+        next_screen = (screen_t)user_data;
+    }
+    else{
+        next_screen = main_screen;
+    }
+    switch(code){
+        case LV_EVENT_PRESSING :{
+             lv_obj_set_style_bg_color(btn,lv_color_hex(0x7a9fff),0);
+        }
+        break;
+        case LV_EVENT_RELEASED:{
+            lv_obj_remove_local_style_prop(btn,LV_STYLE_BG_COLOR,0);
+            if(next_screen != main_screen)main_block_in_screen(next_screen);
+        }
+        break;
+    }
+}
+static void main_screen_create(void){
+    lv_obj_t* task_list = lv_list_create(screen[main_screen]);
+    lv_obj_t* btn;
+    lv_obj_set_style_border_width(task_list,0,0);
+    lv_obj_set_size(task_list,LV_PCT(100),LV_PCT(100));
+    btn = lv_list_add_button(task_list,LV_SYMBOL_WIFI,"WIFI");
+    lv_obj_add_event_cb(btn,main_btn_cb,LV_EVENT_ALL,wifi_screen);
+    btn = lv_list_add_button(task_list,NULL,"NONE");
+    lv_obj_add_event_cb(btn,main_btn_cb,LV_EVENT_ALL,NULL);
+    btn = lv_list_add_button(task_list,NULL,"NONE");
+    lv_obj_add_event_cb(btn,main_btn_cb,LV_EVENT_ALL,NULL);
+    btn = lv_list_add_button(task_list,NULL,"NONE");
+    lv_obj_add_event_cb(btn,main_btn_cb,LV_EVENT_ALL,NULL);
+    btn = lv_list_add_button(task_list,NULL,"NONE");
+    lv_obj_add_event_cb(btn,main_btn_cb,LV_EVENT_ALL,NULL);
+    btn = lv_list_add_button(task_list,NULL,"NONE");
+    lv_obj_add_event_cb(btn,main_btn_cb,LV_EVENT_ALL,NULL);
+    btn = lv_list_add_button(task_list,NULL,"NONE");
+    lv_obj_add_event_cb(btn,main_btn_cb,LV_EVENT_ALL,NULL);
+    btn = lv_list_add_button(task_list,NULL,"NONE");
+    lv_obj_add_event_cb(btn,main_btn_cb,LV_EVENT_ALL,NULL);
+}
+static void wifi_screen_create(void){
+    lv_obj_t* wifi_label  = lv_label_create(screen[wifi_screen]);
+    lv_obj_t* wifi_switch = lv_switch_create(screen[wifi_screen]);
+    lv_obj_t* wifi_info   = lv_list_create(page_block[right_block]);
+    lv_obj_t* wifi_tip    = lv_label_create(screen[wifi_screen]);
+    lv_obj_set_flex_flow(screen[wifi_screen],LV_FLEX_FLOW_ROW_WRAP);
+    lv_label_set_text(wifi_label,LV_SYMBOL_WIFI "WIFI");
+    lv_obj_set_style_text_font(wifi_label,&lv_font_montserrat_20,0);
+    lv_obj_set_flex_align(screen[wifi_screen],LV_FLEX_ALIGN_SPACE_BETWEEN,LV_FLEX_ALIGN_START,LV_FLEX_ALIGN_START);
+    lv_obj_set_size(wifi_info,LV_PCT(100),LV_PCT(100));
+    lv_obj_center(wifi_tip);
+    lv_label_set_text(wifi_tip,"WIFI disconnected");
+}
+static void main_block_create(void){
+    static lv_style_t screen_style;
+    lv_style_init(&screen_style);
+    lv_style_set_size(&screen_style,LV_PCT(100),LV_PCT(100));
+    lv_style_set_pad_all(&screen_style,0);
+    lv_style_set_border_width(&screen_style,0);
+    for(uint32_t i = 0;i<screen_count;i++){
+        screen[i] = lv_obj_create(page_block[main_block]);
+        lv_obj_add_flag(screen[i],LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_style(screen[i],&screen_style,0);
+    }
+    lv_obj_remove_flag(screen[main_screen],LV_OBJ_FLAG_HIDDEN);
+    main_screen_create();
+    wifi_screen_create();
+}
+void ui_demo1(void){
+    mem_init(&ui_mem_pool,ui_mem_buffer,4096);  /* 分配内存池 */
+    dlist_init(&screen_list,&ui_mem_pool);      /* 初始化链表,绑定内存池 */
+    dlist_insert_head(&screen_list,main_screen); /* 将当前屏幕插入链表 */
+    /* 将rootscreen设置为flex_col  */
+    lv_obj_set_flex_flow(root_screen,LV_FLEX_FLOW_COLUMN_WRAP);
+    /* 区块布局 */
+    block_init();
+    /* 创建各区块的内容 */
+    top_block_create();
+    bottom_block_create();
+    main_block_create();
+}
 void lvgl_ui(void){
     ui_init();
     //ui_size();
@@ -341,5 +789,12 @@ void lvgl_ui(void){
     //ui_style();
     //ui_slider();
     //ui_event();
-    ui_event_bubbing();
+    //ui_event_bubbing();
+    //ui_timer();
+    //ui_label();
+    //ui_switch();
+    //ui_led();
+    //ui_list();
+    //ui_key_board();
+    ui_demo1();
 }
