@@ -1,7 +1,21 @@
 #include "ui.h"
-#include "lvgl/lvgl.h"
+#include "ui_manager.h"
+#include "ui_home.h"
+#include "ui_wifi.h"
+#include "ui_wifi_connect.h"
 
+LV_FONT_DECLARE(lv_font_chinese)    /* 声明中文字库 */
+#define USE_DEMO        1
+#define USE_DEMO1       0
+#define USE_DEMO2       1
+/* 互斥锁 */
+#define lvgl_port_lock(x)       LV_UNUSED(x)
+#define lvgl_port_unlock()      LV_UNUSED(0)
+#define assert(x)               x
+
+#if !USE_DEMO    
 static lv_obj_t* root_screen = NULL;     /*根屏幕,后续所有屏幕基于此屏幕创建 */
+
 
 static void ui_init(void){
     root_screen = lv_screen_active();
@@ -583,10 +597,18 @@ void ui_key_board(void){
 
 
 }
+#endif
 
+#if USE_DEMO1
+static lv_obj_t* root_screen = NULL;     /*根屏幕,后续所有屏幕基于此屏幕创建 */
+
+
+static void ui_init(void){
+    root_screen = lv_screen_active();
+}
 /* demo 1 */
 #include "link_list.h"
-/* 页面枚举和全局变量 */
+/* 页面枚举和全局变量 *//* 页面枚举和全局变量 */
 typedef enum{
     top_block = 0,
     main_block,
@@ -599,11 +621,13 @@ typedef enum{
     wifi_screen,
     screen_count,
 }screen_t;
-#define BLOCK_BORDER_WIDTH        0         /* 区块的边框宽度 */
+#define BLOCK_BORDER_WIDTH        0                         /* 区块的边框宽度 */
+static lv_obj_t* block_screen;                              /* 区块的屏幕 */
 static lv_obj_t* page_block[block_count];                   /* 整个页面的区块 */
 static lv_style_t indicator_style;                          /* 屏幕指示器的统一样式 */
 static lv_obj_t**indicator;                                 /* 屏幕指示器(根据分支节点数动态创建) */
 static lv_obj_t* screen[screen_count];                      /* 屏幕 */
+static lv_obj_t* screen_info[screen_count];                 /* 用于显示具体信息的屏幕 */
 #define current_screen  (screen_t)(screen_list.head->data)    /* 当前屏幕永远是屏幕链表的头结点的数据 */
 static dlist_t  screen_list = {0};
 /* 内存池 */
@@ -611,17 +635,17 @@ static uint8_t ui_mem_buffer[4096];
 static mem_pool_t ui_mem_pool;
 static void block_init(void){
     /* 创建page_block */
-    page_block[top_block] = lv_obj_create(root_screen);
-    page_block[main_block] = lv_obj_create(root_screen);
-    page_block[bottom_block] = lv_obj_create(root_screen);
-    page_block[right_block] = lv_obj_create(root_screen);
+    page_block[top_block] = lv_obj_create(block_screen);
+    page_block[main_block] = lv_obj_create(block_screen);
+    page_block[bottom_block] = lv_obj_create(block_screen);
+    page_block[right_block] = lv_obj_create(block_screen);
     /* 对页面区块进行布局 */
     /* 设置区块大小 */
-    lv_obj_set_size(page_block[top_block],LV_PCT(50),LV_PCT(25));
-    lv_obj_set_width(page_block[main_block],LV_PCT(50));
+    lv_obj_set_size(page_block[top_block],LV_PCT(40),LV_PCT(25));
+    lv_obj_set_width(page_block[main_block],LV_PCT(40));
     lv_obj_set_flex_grow(page_block[main_block],1);
-    lv_obj_set_size(page_block[bottom_block],LV_PCT(50),LV_PCT(10));
-    lv_obj_set_size(page_block[right_block],LV_PCT(50),LV_PCT(100));
+    lv_obj_set_size(page_block[bottom_block],LV_PCT(40),LV_PCT(10));
+    lv_obj_set_size(page_block[right_block],LV_PCT(60),LV_PCT(100));
     /* 设置区块间距 */
     lv_obj_set_style_pad_column(root_screen, 0, 0);
     lv_obj_set_style_pad_row(root_screen, 0, 0);
@@ -641,17 +665,22 @@ static void main_block_out_screen(void){
     if(current_screen == main_screen){
         return;
     }
+    lvgl_port_lock(0);
     lv_obj_add_flag(screen[current_screen],LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(screen_info[current_screen],LV_OBJ_FLAG_HIDDEN);
     dlist_remove(&screen_list,screen_list.head);    /* 删除头结点 */
     lv_led_on(indicator[screen_list.count-1]);
     lv_obj_delete(indicator[screen_list.count]);
     lv_obj_remove_flag(screen[current_screen],LV_OBJ_FLAG_HIDDEN);
-    LV_LOG_USER("%d",current_screen);
+    lv_obj_remove_flag(screen_info[current_screen],LV_OBJ_FLAG_HIDDEN);
+    lvgl_port_unlock();
 }
 /* 进入下一个屏幕 */
 static void main_block_in_screen(screen_t in_screen){
     if(in_screen == current_screen)return;
+    lvgl_port_lock(0);
     lv_obj_add_flag(screen[current_screen],LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(screen_info[current_screen],LV_OBJ_FLAG_HIDDEN);
     dlist_insert_head(&screen_list,(void*)in_screen);                   /* 插入头结点 */
     indicator = realloc(indicator,sizeof(lv_obj_t*)*screen_list.count);
     indicator[screen_list.count-1] = lv_led_create(page_block[bottom_block]);
@@ -659,21 +688,23 @@ static void main_block_in_screen(screen_t in_screen){
     lv_led_on(indicator[screen_list.count-1]);
     lv_led_off(indicator[screen_list.count-2]);
     lv_obj_remove_flag(screen[current_screen],LV_OBJ_FLAG_HIDDEN);
-    LV_LOG_USER("%d",current_screen);
+    lv_obj_remove_flag(screen_info[current_screen],LV_OBJ_FLAG_HIDDEN);
+    lvgl_port_unlock();
 }
 /* 顶部区块的界面创建 */
 /* 返回按钮的回调函数 */
 static void bk_btn_cb(lv_event_t* e){
-    lv_obj_t * bk_btn = lv_event_get_target_obj(e);
     lv_event_code_t code = lv_event_get_code(e);
     switch(code){
         case LV_EVENT_RELEASED:{
             main_block_out_screen();
         }
-        break;
+        break;       
+        default:break;
     }
 }
-static void top_block_create(void){
+static void top_block_create(module_t*self){
+    view_module_t *mod = (view_module_t *)self;
     lv_obj_t* back_btn = lv_button_create(page_block[top_block]);
     lv_obj_t* label = lv_label_create(back_btn);
     lv_obj_set_size(back_btn,LV_PCT(40),LV_SIZE_CONTENT);
@@ -684,7 +715,8 @@ static void top_block_create(void){
     lv_obj_add_event_cb(back_btn,bk_btn_cb,LV_EVENT_ALL,NULL);
 }
 /* 底部区块的界面创建 */
-static void bottom_block_create(void){
+static void bottom_block_create(module_t*self){
+    view_module_t *mod = (view_module_t *)self;
     lv_obj_set_flex_flow(page_block[bottom_block],LV_FLEX_FLOW_ROW);
     indicator = malloc(sizeof(lv_obj_t*) * 1);
     indicator[0] = lv_led_create(page_block[bottom_block]);
@@ -707,25 +739,30 @@ static void main_btn_cb(lv_event_t * e){
     else{
         next_screen = main_screen;
     }
+    lvgl_port_lock(0);
     switch(code){
         case LV_EVENT_PRESSING :{
              lv_obj_set_style_bg_color(btn,lv_color_hex(0x7a9fff),0);
         }
         break;
         case LV_EVENT_RELEASED:{
+            
             lv_obj_remove_local_style_prop(btn,LV_STYLE_BG_COLOR,0);
             if(next_screen != main_screen)main_block_in_screen(next_screen);
         }
         break;
+        default:break;
     }
+    lvgl_port_unlock();
 }
-static void main_screen_create(void){
+static void main_screen_create(module_t*self){
+    view_module_t *mod = (view_module_t *)self;
     lv_obj_t* task_list = lv_list_create(screen[main_screen]);
     lv_obj_t* btn;
     lv_obj_set_style_border_width(task_list,0,0);
     lv_obj_set_size(task_list,LV_PCT(100),LV_PCT(100));
     btn = lv_list_add_button(task_list,LV_SYMBOL_WIFI,"WIFI");
-    lv_obj_add_event_cb(btn,main_btn_cb,LV_EVENT_ALL,wifi_screen);
+    lv_obj_add_event_cb(btn,main_btn_cb,LV_EVENT_ALL,(void*)wifi_screen);
     btn = lv_list_add_button(task_list,NULL,"NONE");
     lv_obj_add_event_cb(btn,main_btn_cb,LV_EVENT_ALL,NULL);
     btn = lv_list_add_button(task_list,NULL,"NONE");
@@ -741,20 +778,88 @@ static void main_screen_create(void){
     btn = lv_list_add_button(task_list,NULL,"NONE");
     lv_obj_add_event_cb(btn,main_btn_cb,LV_EVENT_ALL,NULL);
 }
-static void wifi_screen_create(void){
+
+typedef struct{
+    char ssid[33];
+    int8_t  rssi;
+}wifi_info;
+typedef struct{
+    wifi_info* info;
+    uint16_t  ap_nums;
+}scan_res;
+static void wifi_list_updata(event_t*e,void*arg){
+    lvgl_port_lock(0);
+    view_module_t * mod = (view_module_t*)arg;  
+    event_t *e_tmp = e;
+    assert(e_tmp->data);
+    scan_res* res= (scan_res *)(e_tmp->data);
+    uint16_t ap_nums= res->ap_nums;
+    wifi_info *info = res->info;
+    assert(info);
+    lv_obj_clean(mod->wifi_info);
+    if(e_tmp->type == 0x02){
+        lv_obj_t* btn;
+        for(uint16_t i = 0; i < res->ap_nums;i++){
+           btn = lv_list_add_button(mod->wifi_info,LV_SYMBOL_WIFI,info[i].ssid);     
+        }
+    }
+    lvgl_port_unlock();
+}
+static void wifi_list_btn_cb(lv_event_t*e){
+    lvgl_port_lock(0);
+    view_module_t* mod =(view_module_t*)lv_event_get_user_data(e);
+    lv_obj_t* btn = lv_event_get_target_obj(e);
+    lv_event_code_t code = lv_event_get_code(e);
+    if(code == LV_EVENT_RELEASED){
+        strcpy(mod->ConnectCounter.ssid,lv_list_get_button_text(mod->wifi_info,btn));
+        /* 创建连接页面 */
+        lv_obj_t* connect_page = lv_obj_create(root_screen);
+        lv_obj_set_size(connect_page,LV_PCT(50),LV_PCT(50));
+        lv_obj_set_align(connect_page,LV_ALIGN_CENTER);
+        lv_obj_t* concel_btn = lv_button_create(connect_page);
+        lv_obj_t* connect_btn = lv_button_create(connect_page);
+        lv_obj_align(concel_btn,LV_ALIGN_BOTTOM_MID,lv_obj_get_width(concel_btn),0);
+        lv_obj_align(connect_btn,LV_ALIGN_BOTTOM_MID,-lv_obj_get_width(concel_btn),0);
+    }
+
+
+}
+static void wifi_switch_cb(lv_event_t *e){
+    static bool wifi_inited = 0;
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t* sw = lv_event_get_target_obj(e);
+    view_module_t * mod = (view_module_t*)lv_event_get_user_data(e);
+    if(code == LV_EVENT_VALUE_CHANGED){
+        if(lv_obj_has_state(sw,LV_STATE_CHECKED)){
+            event_publish(mod->base.bus,view_wifi_start,NULL,1000);
+            lv_obj_t* btn;
+            btn = lv_list_add_btn(mod->wifi_info,LV_SYMBOL_WIFI,"test");
+            lv_obj_add_event_cb(btn,wifi_list_btn_cb,LV_EVENT_RELEASED,mod);
+        }
+        else{
+            event_publish(mod->base.bus,view_wifi_close,NULL,1000);
+            lv_obj_clean(mod->wifi_info);
+        }
+    }
+}
+static void wifi_screen_create(module_t*self){
+    view_module_t *mod = (view_module_t *)self;
     lv_obj_t* wifi_label  = lv_label_create(screen[wifi_screen]);
     lv_obj_t* wifi_switch = lv_switch_create(screen[wifi_screen]);
-    lv_obj_t* wifi_info   = lv_list_create(page_block[right_block]);
     lv_obj_t* wifi_tip    = lv_label_create(screen[wifi_screen]);
+    lv_obj_t* btn;
+    mod->wifi_info   = lv_list_create(screen_info[wifi_screen]);    
+    lv_obj_set_size(mod->wifi_info,LV_PCT(100),LV_PCT(100));
     lv_obj_set_flex_flow(screen[wifi_screen],LV_FLEX_FLOW_ROW_WRAP);
     lv_label_set_text(wifi_label,LV_SYMBOL_WIFI "WIFI");
-    lv_obj_set_style_text_font(wifi_label,&lv_font_montserrat_20,0);
+    lv_obj_set_style_text_font(wifi_label,&lv_font_montserrat_16,0);
     lv_obj_set_flex_align(screen[wifi_screen],LV_FLEX_ALIGN_SPACE_BETWEEN,LV_FLEX_ALIGN_START,LV_FLEX_ALIGN_START);
-    lv_obj_set_size(wifi_info,LV_PCT(100),LV_PCT(100));
     lv_obj_center(wifi_tip);
     lv_label_set_text(wifi_tip,"WIFI disconnected");
+    lv_obj_add_event_cb(wifi_switch,wifi_switch_cb,LV_EVENT_VALUE_CHANGED,mod);
 }
-static void main_block_create(void){
+static void main_block_create(module_t*self){
+    view_module_t *mod = (view_module_t *)self;
     static lv_style_t screen_style;
     lv_style_init(&screen_style);
     lv_style_set_size(&screen_style,LV_PCT(100),LV_PCT(100));
@@ -762,39 +867,69 @@ static void main_block_create(void){
     lv_style_set_border_width(&screen_style,0);
     for(uint32_t i = 0;i<screen_count;i++){
         screen[i] = lv_obj_create(page_block[main_block]);
+        screen_info[i] = lv_obj_create(page_block[right_block]);
         lv_obj_add_flag(screen[i],LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_style(screen[i],&screen_style,0);
+        lv_obj_add_flag(screen_info[i],LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_style(screen_info[i],&screen_style,0);
     }
     lv_obj_remove_flag(screen[main_screen],LV_OBJ_FLAG_HIDDEN);
-    main_screen_create();
-    wifi_screen_create();
+    lv_obj_remove_flag(screen_info[main_screen],LV_OBJ_FLAG_HIDDEN);
+    main_screen_create(self);
+    wifi_screen_create(self);
 }
-void ui_demo1(void){
-    mem_init(&ui_mem_pool,ui_mem_buffer,4096);  /* 分配内存池 */
+
+
+static void ui_demo1(view_module_t *mod){
+    lvgl_port_lock(0); 
+    ui_init();
+    my_mem_init(&ui_mem_pool,ui_mem_buffer,4096);  /* 分配内存池 */
     dlist_init(&screen_list,&ui_mem_pool);      /* 初始化链表,绑定内存池 */
     dlist_insert_head(&screen_list,main_screen); /* 将当前屏幕插入链表 */
-    /* 将rootscreen设置为flex_col  */
-    lv_obj_set_flex_flow(root_screen,LV_FLEX_FLOW_COLUMN_WRAP);
+    /* 将block_screen设置为flex_col  */
+    block_screen = lv_obj_create(root_screen);
+    lv_obj_set_size(block_screen,LV_PCT(100),LV_PCT(100));
+    lv_obj_set_flex_flow(block_screen,LV_FLEX_FLOW_COLUMN_WRAP);
+    lv_obj_set_style_pad_all(block_screen,0,0);
     /* 区块布局 */
     block_init();
     /* 创建各区块的内容 */
-    top_block_create();
-    bottom_block_create();
-    main_block_create();
+    top_block_create(mod->base);
+    bottom_block_create(mod->base);
+    main_block_create(mod->base);
+    /* 以上界面初始化完毕  */
+    /* 下面开始订阅事件 */
+    event_subscribe(mod->base.bus,0x02,wifi_list_updata,mod,0);
+    lvgl_port_unlock();
 }
-void lvgl_ui(void){
-    ui_init();
-    //ui_size();
-    //ui_pos();
-    //ui_style();
-    //ui_slider();
-    //ui_event();
-    //ui_event_bubbing();
-    //ui_timer();
-    //ui_label();
-    //ui_switch();
-    //ui_led();
-    //ui_list();
-    //ui_key_board();
-    ui_demo1();
+#endif
+
+
+#if USE_DEMO2
+static void ui_demo(view_module_t* mod){
+
 }
+#endif
+static void view_init(module_t* self){
+    view_module_t * mod = (view_module_t*)self;
+    ui_demo(mod);
+}
+
+
+
+view_module_t g_view_module = {
+    .base = {
+        .id = 0x02,
+        .init = view_init,
+        .state = MODULE_STATE_ALLOCATED,
+    },  
+};
+
+void lvgl_init(void){
+    // view_init(&g_view_module.base);
+    ui_register_screen(UI_SCREEN_HOME,g_home_ops.create,g_home_ops.show,g_home_ops.hide);
+    ui_register_screen(UI_SCREEN_WIFI,g_wifi_ops.create,g_wifi_ops.show,g_wifi_ops.hide);
+    ui_register_screen(UI_SCREEN_WIFI_CONNECT,g_wifi_connect_ops.create,g_wifi_connect_ops.show,g_wifi_connect_ops.hide);
+    ui_init();;
+}
+

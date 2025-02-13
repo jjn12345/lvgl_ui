@@ -43,11 +43,11 @@ typedef struct {
 
 
 /* 内存初始化（必须4字节对齐） */
-bool mem_init(mem_pool_t* pool, void* buffer, uint32_t size);
+bool my_mem_init(mem_pool_t* pool, void* buffer, uint32_t size);
 /* 内存分配（带4字节对齐） */
 void* mem_alloc(mem_pool_t* pool, uint32_t size);
 /* 内存释放 */
-bool mem_free(mem_pool_t* pool, void* ptr);
+bool my_mem_free(mem_pool_t* pool, void* ptr);
 /* 内存状态查询 */
 typedef struct {
     uint32_t total;     

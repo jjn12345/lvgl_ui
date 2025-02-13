@@ -2,7 +2,7 @@
 
 
 /* 内存初始化（必须4字节对齐） */
-bool mem_init(mem_pool_t* pool, void* buffer, uint32_t size) {
+bool my_mem_init(mem_pool_t* pool, void* buffer, uint32_t size) {
     if (!pool || !buffer || size < sizeof(block_header_t) + 8) 
         return false;
 
@@ -120,7 +120,7 @@ void* mem_alloc(mem_pool_t* pool, uint32_t size) {
 }
 
 /* 内存释放 */
-bool mem_free(mem_pool_t* pool, void* ptr) {
+bool my_mem_free(mem_pool_t* pool, void* ptr) {
     if (!pool || !ptr) return false;
 
     block_header_t* block = (block_header_t*)
